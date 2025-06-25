@@ -443,16 +443,15 @@ class Request extends \Workerman\Psr7\Request
             // Get chunked length
             if ($this->chunkedLength === 0) {
                 $crlf_position = strpos($this->chunkedData, "\r\n");
-                if ($crlf_position === false && strlen($this->chunkedData) > 1024) {
-                    $this->emitError(new RuntimeException('bad chunked length'));
+                if (false === $crlf_position) {
+                    if (strlen($this->chunkedData) > 1024) {
+                        $this->emitError(new RuntimeException('bad chunked length'));
+                    }
                     return;
                 }
 
-                if ($crlf_position === false) {
-                    return;
-                }
                 $length_chunk = substr($this->chunkedData, 0, $crlf_position);
-                if (str_contains($crlf_position, ';')) {
+                if (str_contains($length_chunk, ';')) {
                     list($length_chunk) = explode(';', $length_chunk, 2);
                 }
                 $length = hexdec(ltrim(trim($length_chunk), "0"));

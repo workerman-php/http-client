@@ -390,6 +390,9 @@ class Request extends \Workerman\Psr7\Request
         $transfer_encoding = $this->response->getHeaderLine('Transfer-Encoding');
         // Chunked
         if ($transfer_encoding && !str_contains($transfer_encoding, 'identity')) {
+            // 标记为流式连接
+            $this->connection->pool['is_streaming'] = true;
+            $this->connection->pool['last_data_time'] = time();
             $this->connection->onMessage = array($this, 'handleChunkedData');
             $this->handleChunkedData($this->connection, $body);
         } else {
@@ -434,6 +437,10 @@ class Request extends \Workerman\Psr7\Request
         try {
             if ($buffer !== '') {
                 $this->chunkedData .= $buffer;
+                // 更新流式连接的最后数据接收时间
+                if (isset($connection->pool['is_streaming']) && $connection->pool['is_streaming']) {
+                    $connection->pool['last_data_time'] = time();
+                }
             }
 
             $receive_len = strlen($this->chunkedData);

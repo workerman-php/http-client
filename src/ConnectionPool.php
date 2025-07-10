@@ -47,7 +47,9 @@ class ConnectionPool extends Emitter
         'max_conn_per_addr' => 128,
         'keepalive_timeout' => 15,
         'connect_timeout'   => 30,
-        'timeout'           => 30,
+        'timeout'           => 30, //普通请求超时时间(秒)
+        'stream_timeout'    => 30, //流式响应中每次数据传输之间的最大间隔时间(秒)
+        'stream_max_time'   => 0, //流式响应的总最大持续时间(秒),默认0为不限制
     ];
 
     /**
@@ -187,11 +189,29 @@ class ConnectionPool extends Emitter
                         $connection->close();
                     }
                 } elseif ($state === 'ESTABLISHED') {
-                    $diff = $time - $connection->pool['request_time'];
-                    if ($diff >= $timeout) {
+                    $isStreaming = isset($connection->pool['is_streaming']) && $connection->pool['is_streaming'];
+                    $isMaxTime = false;
+                    // 流式响应的总最大持续时间(秒)不为0,则需要判断总持续时间是否超过限制
+                    $streamMaxTime = $this->options['stream_max_time'];
+                    if ($isStreaming) {
+                        // 流式连接：基于最后数据接收时间判断超时
+                        $lastDataTime = $connection->pool['last_data_time'] ?? $connection->pool['request_time'];
+                        $diff = $time - $lastDataTime;
+                        $currentTimeout = $this->options['stream_timeout'];
+                        if ($streamMaxTime > 0 && ($time - $connection->pool['request_time'] > $streamMaxTime)) {
+                            $isMaxTime = true;
+                        }
+                    } else {
+                        // 普通连接：基于请求开始时间判断超时
+                        $diff = $time - $connection->pool['request_time'];
+                        $currentTimeout = $timeout;
+                    }
+                    if ($diff >= $currentTimeout || $isMaxTime) {
                         if ($connection->onError) {
                             try {
-                                call_user_func($connection->onError, $connection, 128, 'read ' . $connection->getRemoteAddress() . ' timeout after ' . $diff . ' seconds');
+                                $timeoutType = $isStreaming ? 'stream' : 'read';
+                                $timeoutMsg = $isMaxTime ? (' max_time after ' . $streamMaxTime . ' seconds') : (' timeout after ' . $diff . ' seconds');
+                                call_user_func($connection->onError, $connection, 128, $timeoutType . ' ' . $connection->getRemoteAddress() . $timeoutMsg);
                             } catch (Throwable $exception) {
                                 $this->delete($connection);
                                 $connection->close();

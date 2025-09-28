@@ -563,7 +563,7 @@ class Request extends \Workerman\Psr7\Request
     public function detachConnection(): void
     {
         $this->cleanConnection();
-        // 不是连接池的连接则断开
+        // Close connection if it's not from connection pool
         if ($this->selfConnection) {
             $this->connection->close();
             return;

@@ -228,6 +228,14 @@ class ConnectionPool extends Emitter
                 'proxy' => $proxy,
             ]
         ];
+        
+        // Extract hostname from address for SSL peer_name
+        if ($ssl) {
+            $hostname = $this->extractHostname($address);
+            if ($hostname) {
+                $context['ssl']['peer_name'] = $hostname;
+            }
+        }
         if (!empty( $this->options['context'])) {
             $context = array_merge($context, $this->options['context']);
         }
@@ -259,5 +267,17 @@ class ConnectionPool extends Emitter
         if (!$this->timer) {
             $this->timer = Timer::add(1, [$this, 'closeTimeoutConnection']);
         }
+    }
+    
+    /**
+     * Extract hostname from address
+     *
+     * @param string $address
+     * @return string|null
+     */
+    protected function extractHostname(string $address): ?string
+    {
+        $parsed = parse_url($address);
+        return $parsed['host'] ?? null;
     }
 }

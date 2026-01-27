@@ -324,8 +324,8 @@ class Request extends \Workerman\Psr7\Request
         $this->writeable = false;
 
         $body_size = $this->getBody()->getSize();
-        if ($body_size) {
-            $this->withHeaders(['Content-Length' => $body_size]);
+        if ($body_size !== null) {
+            $this->withHeader('Content-Length', (string)$body_size);
         }
 
         $package = str($this);
@@ -380,6 +380,10 @@ class Request extends \Workerman\Psr7\Request
     protected function checkComplete($body): void
     {
         $status_code = $this->response->getStatusCode();
+        if (strtoupper($this->getMethod()) === 'HEAD') {
+            $this->emitSuccess();
+            return;
+        }
         $content_length = $this->response->getHeaderLine('Content-Length');
         if ($content_length === '0' || ($status_code >= 100 && $status_code < 200)
             || $status_code === 204 || $status_code === 304) {

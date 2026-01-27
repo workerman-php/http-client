@@ -242,6 +242,39 @@ class RequestTest extends TestCase
         $this->assertTrue($successCalled);
     }
 
+    public function testHeadRequestWithoutBody()
+    {
+        $successCalled = false;
+        $errorCalled = false;
+        $http = new Client();
+        $expectedBody = json_encode(['ok' => true]);
+
+        $options = [
+            'method' => 'HEAD',
+            'success' => function ($response) use (&$successCalled, $expectedBody) {
+                $this->assertInstanceOf(Response::class, $response);
+                $this->assertEquals(200, $response->getStatusCode());
+                $this->assertSame('', (string)$response->getBody());
+                $this->assertSame((string)strlen($expectedBody), $response->getHeaderLine('Content-Length'));
+                $successCalled = true;
+            },
+            'error' => function ($exception) use (&$errorCalled) {
+                $errorCalled = true;
+            }
+        ];
+
+        $http->request('http://127.0.0.1:7171/head', $options);
+
+        for ($i = 0; $i < 10; $i++) {
+            if ($successCalled || $errorCalled) {
+                break;
+            }
+            Timer::sleep(0.1);
+        }
+        $this->assertTrue($successCalled);
+        $this->assertFalse($errorCalled);
+    }
+
     /**
      * Test synchronous GET request
      */

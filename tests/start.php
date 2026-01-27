@@ -78,6 +78,15 @@ $http->onMessage = function ($connection, Request $request) {
         case '/get':
             $connection->send(json_encode($request->get()));
             return;
+        case '/head':
+            $body = json_encode(['ok' => true]);
+            if (strtoupper($request->method()) === 'HEAD') {
+                $length = strlen($body);
+                $connection->send("HTTP/1.1 200 OK\r\nServer: workerman\r\nContent-Length: $length\r\nConnection: keep-alive\r\n\r\n", true);
+                return;
+            }
+            $connection->send($body);
+            return;
         case '/post':
             $connection->send(json_encode($request->post()));
             return;

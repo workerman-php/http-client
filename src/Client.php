@@ -356,6 +356,24 @@ class Client
     }
 
     /**
+     * Queue count.
+     *
+     * @param $address
+     * @return int
+     */
+    public function queueCount($address = null): int
+    {
+        if ($address !== null) {
+            return count($this->queue[$address] ?? []);
+        }
+        $count = 0;
+        foreach ($this->queue as $tasks) {
+            $count += count($tasks);
+        }
+        return $count;
+    }
+
+    /**
      * @param $options
      * @param $exception
      * @return void

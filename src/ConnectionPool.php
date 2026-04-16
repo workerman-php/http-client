@@ -15,9 +15,9 @@ namespace Workerman\Http;
 
 use Exception;
 use Throwable;
-use \Workerman\Connection\AsyncTcpConnection;
-use \Workerman\Timer;
-use \Workerman\Worker;
+use Workerman\Timer;
+use Workerman\Worker;
+use Workerman\Connection\AsyncTcpConnection;
 
 /**
  * Class ConnectionPool
@@ -224,9 +224,6 @@ class ConnectionPool extends Emitter
                 'verify_peer_name'  => false,
                 'allow_self_signed' => true
             ],
-            'http' => [
-                'proxy' => $proxy,
-            ]
         ];
         
         // Extract hostname from address for SSL peer_name
@@ -239,6 +236,7 @@ class ConnectionPool extends Emitter
         if (!empty( $this->options['context'])) {
             $context = array_merge($context, $this->options['context']);
         }
+        $context = ProxyHelper::applyProxyToContext($context, $proxy);
         if (!$ssl) {
             unset($context['ssl']);
         }

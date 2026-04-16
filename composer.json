@@ -5,7 +5,7 @@
     "license" : "MIT",
     "require": {
         "workerman/psr7": ">=1.4.3",
-        "workerman/workerman": "^5.1 || dev-master"
+        "workerman/workerman": "^5.1.11 || dev-master"
     },
     "autoload": {
         "psr-4": {"Workerman\\Http\\": "./src"}

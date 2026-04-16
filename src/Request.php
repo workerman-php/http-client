@@ -17,7 +17,7 @@ use Exception;
 use Psr\Http\Message\MessageInterface;
 use RuntimeException;
 use Throwable;
-use \Workerman\Connection\AsyncTcpConnection;
+use Workerman\Connection\AsyncTcpConnection;
 use Workerman\Psr7\MultipartStream;
 use Workerman\Psr7\UriResolver;
 use Workerman\Psr7\Uri;
@@ -198,6 +198,7 @@ class Request extends \Workerman\Psr7\Request
             $context = $this->options['context'];
         }
         $ssl = $this->getUri()->getScheme() === 'https';
+        $context = ProxyHelper::applyProxyToContext($context, (string)($this->options['proxy'] ?? ''));
         if (!$ssl) {
             unset($context['ssl']);
         }

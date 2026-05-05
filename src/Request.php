@@ -17,7 +17,7 @@ use Exception;
 use Psr\Http\Message\MessageInterface;
 use RuntimeException;
 use Throwable;
-use Workerman\Connection\AsyncTcpConnection;
+use \Workerman\Connection\AsyncTcpConnection;
 use Workerman\Psr7\MultipartStream;
 use Workerman\Psr7\UriResolver;
 use Workerman\Psr7\Uri;
@@ -368,6 +368,11 @@ class Request extends \Workerman\Psr7\Request
                 explode('/', $parts[0])[1],
                 $parts[2] ?? null
             );
+
+            // Headers fully parsed; let listeners react before the body is delivered.
+            // Useful for: early status/Content-Type checks, large-download decisions,
+            // header propagation (X-Request-Id, X-RateLimit-*) and SSE/streaming setup.
+            $this->emit('response', $this->response);
 
             $this->checkComplete($response_data['body']);
         } catch (Throwable $e) {

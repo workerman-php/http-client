@@ -247,6 +247,10 @@ class Client
             $request->on('progress', $options['progress']);
         }
 
+        if (isset($options['response'])) {
+            $request->on('response', $options['response']);
+        }
+
         $state = $connection->getStatus(false);
         if ($state === 'CLOSING' || $state === 'CLOSED') {
             $connection->reconnect();

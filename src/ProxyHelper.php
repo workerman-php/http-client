@@ -16,6 +16,8 @@ class ProxyHelper
 
         if ($proxy['scheme'] === 'socks5') {
             $connection->proxySocks5 = $proxy['connect_endpoint'];
+            $connection->proxySocks5Username = $proxy['username'];
+            $connection->proxySocks5Password = $proxy['password'];
             return;
         }
 
@@ -52,7 +54,7 @@ class ProxyHelper
         $proxy = parse_url($proxyString);
         if (!$proxy || empty($proxy['host'])) {
             throw new InvalidArgumentException(
-                "Invalid proxy url: $proxyString. Expected formats like http://user:pass@host:port or socks5://host:port"
+                "Invalid proxy url: $proxyString. Expected formats like http://user:pass@host:port, socks5://host:port or socks5://user:pass@host:port"
             );
         }
 
@@ -67,10 +69,6 @@ class ProxyHelper
             throw new InvalidArgumentException("Unsupported proxy scheme: $scheme");
         }
 
-        if ($scheme === 'socks5' && (isset($proxy['user']) || isset($proxy['pass']))) {
-            throw new InvalidArgumentException('Authenticated socks5 proxies are not supported by this client.');
-        }
-
         $host = $proxy['host'];
         $port = $proxy['port'] ?? self::defaultPortForScheme($scheme);
         $user = rawurldecode((string)($proxy['user'] ?? ''));
@@ -82,6 +80,8 @@ class ProxyHelper
             'port' => $port,
             'connect_endpoint' => self::buildEndpoint(self::resolveHost($host), $port),
             'authorization_header' => ($user !== '' || $pass !== '') ? 'Basic ' . base64_encode($user . ':' . $pass) : '',
+            'username' => $user,
+            'password' => $pass,
         ];
     }
 

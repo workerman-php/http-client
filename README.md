@@ -9,6 +9,8 @@ Asynchronous http client for PHP based on workerman.
 
 -  Support Http proxy.
 
+-  Support Socks5 proxy. (include authenticated)
+
 -  Parallel Request. (use 'revolt/event-loop')
 
 # Installation
@@ -106,7 +108,9 @@ $worker->onWorkerStart = function(){
     $http->request('https://example.com/', [
         'method' => 'GET',
         'proxy' => 'http://127.0.0.1:1080',
+        //  'proxy' => 'http://user:pass@127.0.0.1:1080',
          // 'proxy' => 'socks5://127.0.0.1:1081',
+         // 'proxy' => 'socks5://username:password@127.0.0.1:1081',
         'success' => function ($response) {
             echo $response->getBody();
         },

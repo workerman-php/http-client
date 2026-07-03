@@ -286,8 +286,16 @@ class Client
         $connection->onConnect = $connection->onClose = $connection->onMessage = $connection->onError = null;
         $request_header_connection = strtolower($request->getHeaderLine('Connection'));
         $response_header_connection = $response ? strtolower($response->getHeaderLine('Connection')) : '';
-        // Close Connection without header Connection: keep-alive
-        if ('keep-alive' !== $request_header_connection || 'keep-alive' !== $response_header_connection || $request->getProtocolVersion() !== '1.1') {
+        // RFC 7230 §6.3: HTTP/1.1 connections are persistent by default — servers usually OMIT
+        // the Connection header. Close only when either side explicitly says "close", the
+        // protocol is not 1.1, or there is no response (transport-level failure).
+        // (Previously required both sides to literally send "Connection: keep-alive", which
+        // almost never happens with real-world servers, so the pool never reused connections.)
+        $shouldClose = !$response
+            || $request->getProtocolVersion() !== '1.1'
+            || str_contains($request_header_connection, 'close')
+            || str_contains($response_header_connection, 'close');
+        if ($shouldClose) {
             $connection->close();
         }
         $request->detachConnection($connection);

@@ -203,6 +203,13 @@ class Client
         }
         $request->setOptions($options)->attachConnection($connection);
 
+        // Hand the in-flight Request to the caller (e.g. to close its connection for cancellation).
+        // Fires again with the new Request when a redirect is followed, so the caller always
+        // holds the live one. No behavior change unless the 'request' option is set.
+        if (isset($options['request'])) {
+            call_user_func($options['request'], $request);
+        }
+
         $client = $this;
         $request->once('success', function($response) use ($task, $client, $request) {
             $client->recycleConnectionFromRequest($request, $response);

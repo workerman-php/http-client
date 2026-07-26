@@ -78,13 +78,16 @@ class Client
         $isCoroutine = !isset($options['success']) && Coroutine::isCoroutine();
         if ($isCoroutine) {
             $options['is_coroutine'] = true;
+            $completed = false;
             $result = $exception = null;
             $coroutine = Coroutine::getCurrent();
-            $options['success'] = function ($response) use ($coroutine, &$result, &$suspend) {
+            $options['success'] = function ($response) use ($coroutine, &$completed, &$result, &$suspend) {
+                $completed = true;
                 $result = $response;
                 $suspend && $coroutine->resume();
             };
-            $options['error'] = function ($throwable) use ($coroutine, &$exception, &$suspend) {
+            $options['error'] = function ($throwable) use ($coroutine, &$completed, &$exception, &$suspend) {
+                $completed = true;
                 $exception = $throwable;
                 $suspend && $coroutine->resume();
             };
@@ -101,8 +104,11 @@ class Client
             return null;
         }
         if ($isCoroutine) {
-            $suspend = true;
-            $coroutine->suspend();
+            if (!$completed) {
+                $suspend = true;
+                $coroutine->suspend();
+                $suspend = false;
+            }
             if ($exception) {
                 throw $exception;
             }
@@ -201,7 +207,7 @@ class Client
                 $options['query'] = $data;
             }
         }
-        $request->setOptions($options)->attachConnection($connection);
+        $request->setOptions($options);
 
         $client = $this;
         $request->once('success', function($response) use ($task, $client, $request) {
@@ -250,6 +256,8 @@ class Client
         if (isset($options['response'])) {
             $request->on('response', $options['response']);
         }
+
+        $request->attachConnection($connection);
 
         $state = $connection->getStatus(false);
         if ($state === 'CLOSING' || $state === 'CLOSED') {

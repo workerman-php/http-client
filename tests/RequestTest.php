@@ -81,6 +81,29 @@ class RequestTest extends TestCase
         $this->assertTrue($errorCalled);
     }
 
+    public function testImmediateConnectionFailureCallbackCalledOnce()
+    {
+        $successCalled = false;
+        $exceptions = [];
+        $http = new Client();
+        $http->get('http://bad host/', function () use (&$successCalled) {
+            $successCalled = true;
+        }, function ($exception) use (&$exceptions) {
+            $exceptions[] = $exception;
+        });
+
+        for ($i = 0; $i < 10; $i++) {
+            if ($exceptions) {
+                break;
+            }
+            Timer::sleep(0.01);
+        }
+
+        $this->assertFalse($successCalled);
+        $this->assertCount(1, $exceptions);
+        $this->assertInstanceOf(RuntimeException::class, $exceptions[0]);
+    }
+
     /**
      * Test POST request with callbacks
      */

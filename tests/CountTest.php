@@ -2,6 +2,7 @@
 namespace tests;
 
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Workerman\Http\Client;
 use Workerman\Http\ParallelClient;
 use Workerman\Timer;
@@ -104,6 +105,25 @@ class CountTest extends TestCase
 
         $this->assertCount(2, $results);
         $this->assertSame(0, $http->queueCount());
+    }
+
+    /**
+     * Test ParallelClient returns synchronous connection failures instead of hanging.
+     */
+    public function testParallelClientImmediateConnectionFailure()
+    {
+        $http = new ParallelClient();
+        $http->push('http://bad host/');
+        $http->push('http://127.0.0.1:7171/get?k=v1');
+        $http->push('http://127.0.0.1:7171/get?k=v2');
+
+        $results = $http->await(false);
+
+        $this->assertCount(3, $results);
+        $this->assertFalse($results[0][0]);
+        $this->assertInstanceOf(RuntimeException::class, $results[0][1]);
+        $this->assertTrue($results[1][0]);
+        $this->assertTrue($results[2][0]);
     }
 
 }

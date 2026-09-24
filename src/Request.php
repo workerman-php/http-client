@@ -78,6 +78,23 @@ class Request extends \Workerman\Psr7\Request
     protected bool $selfConnection = false;
 
     /**
+     * Whether the underlying connection reached ESTABLISHED, i.e. whether the request was
+     * (about to be) written to the socket. A connection closed before that point never
+     * carried the request, which makes the failure safe to retry.
+     *
+     * @var bool
+     */
+    protected bool $connected = false;
+
+    /**
+     * Timestamp when this request was attached to its connection; used to report how long a
+     * connect-stage failure took.
+     *
+     * @var float
+     */
+    protected float $attachedAt = 0.0;
+
+    /**
      * @var array
      */
     protected array $options = [
@@ -335,6 +352,8 @@ class Request extends \Workerman\Psr7\Request
 
     public function onConnect(): void
     {
+        // The connection is up: the request is about to be written by doSend().
+        $this->connected = true;
         try {
             $this->doSend();
         } catch (Throwable $e) {
@@ -554,6 +573,18 @@ class Request extends \Workerman\Psr7\Request
      */
     public function onUnexpectClose(): void
     {
+        if (!$this->connected) {
+            // The connection was closed before it reached ESTABLISHED, so the request was
+            // never written to the socket. Report it as a connect-stage failure (error code 1,
+            // the same code the other connect errors use) instead of "The connection to X has
+            // been closed.", so callers can tell "nothing was sent, retrying is safe" from
+            // "the request was sent and the response was lost" (retrying the latter may
+            // duplicate a non-idempotent call).
+            $this->emitError(new RuntimeException('connect ' . $this->connection->getRemoteIp()
+                . ' fail after ' . round(microtime(true) - $this->attachedAt, 4) . ' seconds: '
+                . 'connection closed by peer before the request was sent', 1));
+            return;
+        }
         $this->emitError(new RuntimeException('The connection to ' . $this->connection->getRemoteIp() . ' has been closed.'));
     }
 
@@ -602,6 +633,10 @@ class Request extends \Workerman\Psr7\Request
         $connection->onError   = array($this, 'onError');
         $connection->onClose   = array($this, 'onUnexpectClose');
         $this->connection = $connection;
+        // A connection taken from the pool is already established, and onConnect() will never
+        // fire for it; a fresh one is still CONNECTING and flips this in onConnect().
+        $this->connected = $connection->getStatus(false) === 'ESTABLISHED';
+        $this->attachedAt = microtime(true);
 
         return $this;
     }

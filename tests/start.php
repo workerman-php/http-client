@@ -110,6 +110,16 @@ $http->onMessage = function ($connection, Request $request) {
         case '/exception':
             $connection->close();
             return;
+        case '/reply-then-close':
+            // Answer normally (no Connection header, so the client keeps the connection in
+            // its pool), then close the TCP connection without any HTTP notice: the pooled
+            // copy becomes stale while it is idle.
+            $connection->send(json_encode(['ok' => true]));
+            Timer::add(0.2, function () use ($connection) {
+                $connection->close();
+            }, [], false);
+            return;
+            return;
         default:
             $connection->send('Hello World');
     }

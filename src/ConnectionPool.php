@@ -110,7 +110,20 @@ class ConnectionPool extends Emitter
             $this->idle[$address][$connection_id] = $connection;
             $connection->pool['idle_time'] = time();
             $connection->onConnect = $connection->onMessage = $connection->onError =
-            $connection->onClose = $connection->onBufferFull = $connection->onBufferDrain = null;
+            $connection->onBufferFull = $connection->onBufferDrain = null;
+            // Keep a close handler so an idle connection closed by the peer is dropped from
+            // the pool right away. Nothing else removes it: while a connection is idle no
+            // request reads from its socket, so a connection the peer has closed stays in
+            // the idle list until the next fetch() hands it to a request — which then has to
+            // reconnect, or fails with "The connection to x.x.x.x has been closed." when the
+            // peer's FIN has not been processed yet. Only the idle entry is dropped here: a
+            // fetched connection has already been handed to a request, which replaces this
+            // handler in Request::attachConnection().
+            $connection->onClose = function (AsyncTcpConnection $connection): void {
+                if (isset($this->idle[$connection->address][$connection->id])) {
+                    $this->delete($connection);
+                }
+            };
         }
         $this->tryToCreateConnectionCheckTimer();
         $this->emit('idle', $address);

@@ -325,7 +325,10 @@ class Request extends \Workerman\Psr7\Request
         $this->writeable = false;
 
         $body_size = $this->getBody()->getSize();
-        if ($body_size !== null && ($body_size > 0 || in_array(strtoupper($this->getMethod()), ['POST', 'PUT', 'PATCH'], true))) {
+        $omit_content_length = $body_size === 0
+            && $this->getMethod() === 'GET'
+            && !$this->hasHeader('Content-Length');
+        if ($body_size !== null && !$omit_content_length) {
             $this->withHeader('Content-Length', (string)$body_size);
         }
 
